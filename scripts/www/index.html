@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>随机决策器 · Web</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#63B3FF" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#63B3FF; --primary-dark:#3D8FE8; --primary-soft:#DDF0FF;
+    --bg:#FFFDF9; --card:#FFFDF9;
+    --text:#5C4A4A; --sub:#A890A0; --danger:#FF6B6B; --gold:#FFD93D; --accent:#7BDFF2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Baloo 2","ZCOOL KuaiLe",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:
+      radial-gradient(circle at 12% 18%, #DDF0FF 0 16px, transparent 17px) 0 0/150px 150px,
+      radial-gradient(circle at 82% 72%, #D9F3FF 0 20px, transparent 21px) 0 0/170px 170px,
+      linear-gradient(180deg,#EDF7FF 0%,#EAF6FF 100%);
+    color:var(--text);min-height:100vh;
+  }
+  .app{max-width:680px;margin:0 auto;padding:26px 18px 52px;}
+  header{margin-bottom:18px;text-align:center;}
+  header h1{font-size:34px;margin:0;font-weight:800;letter-spacing:1px;color:var(--primary-dark);text-shadow:2px 2px 0 #fff, 4px 4px 0 rgba(99,179,255,.25);}
+  header p{margin:8px 0 0;color:var(--sub);font-size:16px;font-weight:600;}
+
+  .card{background:var(--card);border:3px solid #fff;border-radius:30px;padding:18px;box-shadow:0 10px 0 rgba(99,179,255,.15), 0 16px 30px rgba(99,179,255,.20);margin-bottom:18px;}
+
+  /* 舞台 / 老虎机 */
+  .stage{position:relative;height:220px;overflow:hidden;border-radius:28px;border:4px dashed var(--primary);background:#FFFDF9;}
+  .strip{position:absolute;left:0;right:0;top:0;will-change:transform;}
+  .item{height:56px;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:800;color:var(--text);}
+  .item.win{background:var(--gold);color:var(--primary-dark);border-radius:16px;transform:scale(1.18);font-size:26px;box-shadow:0 0 0 4px #fff, 0 6px 16px rgba(99,179,255,.4);animation:winPulse .6s ease both;}
+  @keyframes winPulse{0%{transform:scale(1);}50%{transform:scale(1.24);}100%{transform:scale(1.18);}}
+  .highlight{position:absolute;left:0;right:0;top:82px;height:56px;border-top:4px solid var(--gold);border-bottom:4px solid var(--gold);background:rgba(255,217,61,.18);border-radius:14px;pointer-events:none;z-index:2;}
+  .fade{position:absolute;left:0;right:0;height:54px;z-index:1;pointer-events:none;}
+  .fade.top{top:0;background:linear-gradient(#FFFDF9,rgba(255,253,249,0));}
+  .fade.bottom{bottom:0;background:linear-gradient(rgba(255,253,249,0),#FFFDF9);}
+  .placeholder{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--sub);border:4px dashed var(--primary);border-radius:28px;text-align:center;line-height:1.6;font-weight:600;background:rgba(255,253,249,.6);}
+  .placeholder .emoji{font-size:48px;margin-bottom:8px;animation:bob 2s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+  /* 模式 */
+  .modes{display:flex;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+  .mode{flex:1;min-width:92px;background:#fff;border:3px solid var(--primary-soft);border-radius:22px;padding:12px 6px;text-align:center;cursor:pointer;transition:.18s;box-shadow:0 4px 0 rgba(99,179,255,.18);}
+  .mode:hover{transform:translateY(-2px);}
+  .mode.active{border-color:var(--primary);background:var(--primary-soft);transform:translateY(-2px) scale(1.03);}
+  .mode .t{font-weight:800;font-size:16px;color:var(--sub);}
+  .mode.active .t{color:var(--primary-dark);}
+  .mode small{display:block;font-size:10px;color:var(--sub);margin-top:3px;}
+  .rbtn{flex:1;min-width:92px;background:#fff;border:3px dashed var(--primary);border-radius:22px;padding:12px 6px;text-align:center;cursor:pointer;transition:.18s;box-shadow:0 4px 0 rgba(99,179,255,.18);}
+  .rbtn:hover{transform:translateY(-2px);}
+  .rbtn:active{transform:scale(.96);}
+  .rbtn .t{font-weight:800;font-size:16px;color:var(--primary-dark);}
+  .rbtn small{display:block;font-size:10px;color:var(--sub);margin-top:3px;}
+
+  /* 添加 */
+  .add-row{display:flex;gap:10px;margin:14px 0;}
+  .add-row input{flex:1;background:#fff;border:3px solid var(--primary-soft);border-radius:999px;padding:13px 18px;font-size:16px;color:var(--text);font-weight:600;}
+  .add-row input:focus{outline:none;border-color:var(--primary);}
+  .add-row input::placeholder{color:var(--sub);}
+  .add-row button{background:var(--primary);color:#fff;border:none;border-radius:999px;padding:0 24px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 5px 0 var(--primary-dark);transition:.12s;}
+  .add-row button:hover{transform:translateY(-1px);}
+  .add-row button:active{transform:translateY(3px);box-shadow:0 2px 0 var(--primary-dark);}
+
+  .list-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .list-head .count{font-size:17px;font-weight:800;color:var(--primary-dark);}
+  .links a{color:var(--primary-dark);font-weight:800;font-size:15px;margin-left:14px;cursor:pointer;}
+  .links a.danger{color:var(--danger);}
+
+  ul.options{list-style:none;margin:0;padding:0;}
+  .opt{display:flex;align-items:center;background:#fff;border:3px solid var(--primary-soft);border-radius:22px;padding:8px 12px;margin-bottom:10px;box-shadow:0 4px 0 rgba(99,179,255,.12);}
+  .opt .idx{width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;margin-right:8px;flex:none;box-shadow:0 3px 0 var(--primary-dark);}
+  .opt input{flex:1;border:none;font-size:16px;color:var(--text);padding:4px 0;background:transparent;min-width:0;font-weight:700;}
+  .opt .w{display:flex;align-items:center;margin-left:6px;flex:none;}
+  .opt .w button{width:30px;height:30px;border:none;border-radius:50%;background:var(--primary-soft);color:var(--primary-dark);font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 3px 0 rgba(99,179,255,.3);}
+  .opt .w button:active{transform:translateY(2px);box-shadow:none;}
+  .opt .w span{width:26px;text-align:center;font-weight:800;color:var(--primary-dark);}
+  .opt .del{margin-left:6px;border:none;background:transparent;color:var(--danger);font-size:18px;cursor:pointer;flex:none;}
+
+  .decide-btn{width:100%;height:64px;border:none;border-radius:999px;background:linear-gradient(180deg,#8ACBFF,var(--primary));color:#fff;font-size:22px;font-weight:800;cursor:pointer;box-shadow:0 8px 0 var(--primary-dark), 0 14px 24px rgba(99,179,255,.4);margin-top:6px;transition:.12s;letter-spacing:1px;}
+  .decide-btn:hover{transform:translateY(-2px);}
+  .decide-btn:active{transform:translateY(6px);box-shadow:0 2px 0 var(--primary-dark);}
+  .decide-btn:disabled{opacity:.75;cursor:default;transform:none;}
+
+  /* 弹层 */
+  .modal{position:fixed;inset:0;background:rgba(92,74,74,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:18px;}
+  .modal.show{display:flex;}
+  .sheet{background:var(--card);border:4px solid #fff;border-radius:32px;padding:24px;width:100%;max-width:420px;max-height:82vh;overflow:auto;box-shadow:0 12px 0 rgba(99,179,255,.15);}
+  .sheet h2{margin:0 0 14px;font-size:22px;color:var(--primary-dark);text-align:center;font-weight:800;}
+
+  /* 结果弹窗 */
+  .result-card{text-align:center;padding:14px 6px 4px;position:relative;}
+  .result-card .tip{color:var(--sub);font-size:16px;margin-bottom:10px;font-weight:600;}
+  .result-card .res{display:inline-block;font-size:30px;font-weight:800;color:var(--primary-dark);background:var(--gold);padding:14px 28px;border-radius:999px;margin:6px 0 24px;word-break:break-word;box-shadow:0 6px 0 rgba(99,179,255,.35);animation:popBig .55s cubic-bezier(.18,.89,.32,1.28) both;}
+  @keyframes popBig{0%{transform:scale(.3) rotate(-6deg);opacity:0;}55%{transform:scale(1.25) rotate(2deg);}100%{transform:scale(1) rotate(0);opacity:1;}}
+  .result-btns{display:flex;gap:12px;}
+  .result-btns button{flex:1;height:56px;border:none;border-radius:999px;font-size:17px;font-weight:800;cursor:pointer;transition:.12s;}
+  .result-btns .again{background:var(--primary);color:#fff;box-shadow:0 6px 0 var(--primary-dark);}
+  .result-btns .again:active{transform:translateY(3px);box-shadow:0 2px 0 var(--primary-dark);}
+  .result-btns .done{background:var(--primary-soft);color:var(--primary-dark);}
+  .result-btns .done:active{transform:translateY(2px);}
+
+  .confetti{position:absolute;top:0;font-size:24px;pointer-events:none;animation:fall linear forwards;}
+  @keyframes fall{0%{transform:translateY(-20px) rotate(0);opacity:0}10%{opacity:1}100%{transform:translateY(520px) rotate(360deg);opacity:0}}
+
+  /* 预设 / 历史 */
+  .save-row{display:flex;gap:10px;margin-bottom:14px;}
+  .save-row input{flex:1;background:#fff;border:3px solid var(--primary-soft);border-radius:999px;padding:11px 16px;font-size:16px;font-weight:600;}
+  .save-row input:focus{outline:none;border-color:var(--primary);}
+  .save-row button{background:var(--primary);color:#fff;border:none;border-radius:999px;padding:0 18px;font-weight:800;cursor:pointer;box-shadow:0 5px 0 var(--primary-dark);}
+  .save-row button:active{transform:translateY(3px);box-shadow:0 2px 0 var(--primary-dark);}
+  .preset-item,.hist-item{display:flex;align-items:center;justify-content:space-between;background:#fff;border:3px solid var(--primary-soft);border-radius:20px;padding:12px;margin-bottom:10px;}
+  .preset-item .name{font-weight:800;}
+  .preset-item .meta,.hist-item .meta{font-size:13px;color:var(--sub);}
+  .preset-item .del,.hist-item .del{margin-left:12px;color:var(--danger);font-weight:800;cursor:pointer;border:none;background:transparent;}
+  .empty{text-align:center;color:var(--sub);padding:20px 0;font-weight:600;}
+  .close-btn{margin-top:8px;width:100%;height:52px;border:none;border-radius:999px;background:var(--primary-soft);color:var(--primary-dark);font-weight:800;font-size:16px;cursor:pointer;box-shadow:0 5px 0 rgba(99,179,255,.3);}
+  .close-btn:active{transform:translateY(3px);box-shadow:none;}
+
+  .module-label{font-size:15px;color:var(--primary-dark);font-weight:800;margin-bottom:10px;}
+  .modules{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{padding:9px 16px;border-radius:999px;background:#fff;border:3px solid var(--primary-soft);font-size:15px;font-weight:800;color:var(--sub);cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 0 rgba(99,179,255,.12);transition:.15s;}
+  .chip:hover{transform:translateY(-2px);}
+  .chip.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark);transform:translateY(-2px) scale(1.04);}
+  .q-input{width:100%;margin-top:12px;background:#fff;border:3px solid var(--primary-soft);border-radius:999px;padding:12px 18px;font-size:15px;color:var(--text);font-weight:600;}
+  .q-input:focus{outline:none;border-color:var(--primary);}
+  .q-input::placeholder{color:var(--sub);}
+  .opt.ro{cursor:default;}
+  .note{font-size:12px;color:var(--sub);margin:8px 2px 0;list-style:none;font-weight:600;}
+
+  /* 数据库独立界面 */
+  .screen{position:fixed;inset:0;background:linear-gradient(180deg,#DDF0FF 0%,#EAF6FF 100%);z-index:60;display:none;overflow:auto;}
+  .screen.show{display:block;}
+  .screen-inner{max-width:680px;margin:0 auto;padding:22px 18px 48px;}
+  .screen-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+  .back-btn{border:none;background:#fff;border-radius:999px;padding:10px 18px;font-weight:800;font-size:15px;color:var(--primary-dark);cursor:pointer;box-shadow:0 4px 0 rgba(99,179,255,.3);}
+  .back-btn:active{transform:translateY(2px);box-shadow:none;}
+  .screen-title{font-size:24px;font-weight:800;color:var(--primary-dark);}
+  .links a.db{background:var(--primary);color:#fff;border-radius:999px;padding:6px 14px;box-shadow:0 4px 0 var(--primary-dark);}
+  .db-list{margin-top:14px;}
+
+  /* 抽后移除反馈 + 本次抽取面板 */
+  .mode-status{font-size:13px;font-weight:700;color:var(--primary-dark);background:var(--primary-soft);border-radius:999px;padding:8px 14px;margin:0 0 14px;display:none;}
+  .opt.excluded{opacity:.45;filter:grayscale(1);}
+  .ex-tag{flex:none;margin-left:8px;background:var(--danger);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;}
+  .rounds-card .opt.ro{box-shadow:none;}
+
+  @media (max-width:480px){
+    header h1{font-size:28px;}
+    .app{padding:18px 14px 40px;}
+    .item{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>随机决策器</h1>
+    <p>把选择交给命运 🎲</p>
+  </header>
+
+  <div class="card">
+    <div class="module-label">选择模块</div>
+    <div class="modules" id="modules"></div>
+  </div>
+
+  <div class="card">
+    <div class="stage" id="stage">
+      <div class="strip" id="strip"></div>
+      <div class="highlight"></div>
+      <div class="fade top"></div>
+      <div class="fade bottom"></div>
+      <div class="placeholder" id="placeholder"><span class="emoji">🎯</span>点击下方按钮<br>让命运做决定</div>
+    </div>
+  </div>
+
+  <div class="modes" id="modes">
+    <div class="mode active" data-mode="basic"><div class="t">基础</div><small>等概率</small></div>
+    <div class="mode" data-mode="removeAfter"><div class="t">抽后移除</div><small>抽中不再出现</small></div>
+    <div class="rbtn" id="resetBtn"><div class="t">重置</div><small>恢复已移除</small></div>
+  </div>
+  <div class="mode-status" id="modeStatus"></div>
+
+  <div class="add-row" id="addRow">
+    <input id="optInput" placeholder="输入选项，如：火锅" />
+    <button id="addBtn">添加</button>
+  </div>
+
+  <div class="list-head">
+    <span class="count" id="listHeadTitle">我的选项</span>
+    <span class="links">
+      <a id="dbLink" class="db">📚 数据库</a>
+      <a id="toggleList">展开</a>
+      <a id="presetLink">预设</a>
+      <a id="historyLink">历史</a>
+      <a id="clearLink" class="danger">清空</a>
+    </span>
+  </div>
+  <ul class="options" id="optionsList"></ul>
+
+  <div class="card rounds-card" id="roundsCard">
+    <div class="list-head">
+      <span class="count">📜 本次抽取</span>
+      <span class="links"><a id="clearRounds">清空</a></span>
+    </div>
+    <ul class="options" id="roundsList"></ul>
+  </div>
+
+  <button class="decide-btn" id="decideBtn">开始决策</button>
+</div>
+
+<!-- 数据库独立界面 -->
+<div class="screen" id="dbScreen">
+  <div class="screen-inner">
+    <div class="screen-head">
+      <button class="back-btn" id="dbBack">← 返回</button>
+      <div class="screen-title">📚 答案数据库</div>
+    </div>
+    <div class="modules" id="dbModules"></div>
+    <input class="q-input" id="dbSearch" placeholder="搜索答案…" />
+    <div class="add-row" id="dbAddRow">
+      <input id="dbAddInput" placeholder="添加自己的答案（仅自己可见，可删）" />
+      <button id="dbAddBtn">添加</button>
+    </div>
+    <div class="module-label" id="dbCount" style="margin-top:14px;"></div>
+    <ul class="options db-list" id="dbList"></ul>
+  </div>
+</div>
+
+<!-- 结果弹窗 -->
+<div class="modal" id="resultModal">
+  <div class="sheet result-card">
+    <div id="confettiBox"></div>
+    <div class="tip">命运的选择是</div>
+    <div class="res" id="resultText"></div>
+    <div class="result-btns">
+      <button class="again" id="againBtn">再抽一次</button>
+      <button class="done" id="doneBtn">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 预设弹窗 -->
+<div class="modal" id="presetModal">
+  <div class="sheet">
+    <h2>常用决策列表</h2>
+    <div class="save-row">
+      <input id="presetName" placeholder="如：今天吃什么" />
+      <button id="presetSave">保存当前</button>
+    </div>
+    <div id="presetList"></div>
+    <button class="close-btn" data-close="presetModal">关闭</button>
+  </div>
+</div>
+
+<!-- 历史弹窗 -->
+<div class="modal" id="historyModal">
+  <div class="sheet">
+    <h2>历史记录</h2>
+    <div id="historyList"></div>
+    <button class="close-btn" data-close="historyModal">关闭</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var ITEM_H = 56, STAGE_H = 220, CENTER = (STAGE_H - ITEM_H)/2;
+  var LS_OPT = "rd_web_options", LS_HIS = "rd_web_history", LS_PRE = "rd_web_presets", LS_SOURCE = "rd_web_source", LS_MODULE_EXTRA = "rd_web_module_extra";
+
+  /* 内置模块答案库：每个模块的答案都与模块分类严格对应（每个模块 100+ 条） */
+  var MODULES = [
+    { id:"food", name:"美食", icon:"🍜", answers:[
+      "火锅","麦当劳","烧烤","日料","麻辣烫","披萨","汉堡","螺蛳粉","粤式茶餐厅","沙拉轻食","炸鸡","饺子","寿司","韩式炸鸡","牛肉面",
+      "兰州拉面","黄焖鸡米饭","沙县小吃","盖浇饭","煲仔饭","肠粉","小笼包","生煎包","肉夹馍","凉皮","煎饼果子","烤冷面","粤菜","川菜","湘菜",
+      "东北菜","西北菜","云南菜","贵州菜","新疆菜","北京烤鸭","红烧肉","糖醋里脊","宫保鸡丁","麻婆豆腐","鱼香肉丝","回锅肉","水煮鱼","酸菜鱼",
+      "剁椒鱼头","小龙虾","大闸蟹","烤鱼","铁板烧","寿喜锅","部队锅","泡菜锅","关东煮","章鱼小丸子","天妇罗","拉面","乌冬面","荞麦面","意大利面",
+      "牛排","羊排","烤羊腿","烤串","麻辣香锅","冒菜","串串香","砂锅","瓦罐汤","皮蛋瘦肉粥","蛋炒饭","扬州炒饭","咖喱饭","照烧鸡排饭","卤肉饭","便当",
+      "三明治","热狗","玉米浓汤","罗宋汤","奶油蘑菇汤","可丽饼","华夫饼","松饼","蛋糕","马卡龙","泡芙","蛋挞","冰淇淋","酸奶","奶茶","果茶",
+      "咖啡","珍珠奶茶","芝士蛋糕","提拉米苏","布朗尼","慕斯","双皮奶","绿豆糕","月饼","粽子","汤圆","糖葫芦","烤红薯","板栗","卤味","鸭脖",
+      "凤爪","烤肠","煎饺","锅贴","油条","豆浆","豆腐脑","烧麦","糯米鸡","叉烧包","奶黄包","流沙包","葱油饼","手抓饼","鸡蛋灌饼","炒河粉","炒米粉",
+      "过桥米线","酸辣粉","担担面","臊子面","油泼面","炸酱面","热干面","重庆小面","宜宾燃面","新疆拌面","鳗鱼饭","亲子丼","海鲜饭","西班牙海鲜饭","墨西哥卷",
+      "塔可","意式烩饭","越南河粉","泰式炒河粉","冬阴功","咖喱蟹","新加坡海南鸡饭","肉骨茶","印尼炒饭","日式炸猪排","韩式拌饭","冷面","石锅拌饭","参鸡汤","螺蛳粉"
+    ] },
+    { id:"city", name:"旅游城市", icon:"🏙️", answers:[
+      "北京","上海","成都","杭州","西安","重庆","厦门","丽江","三亚","大理","苏州","广州","长沙","拉萨","昆明","南京","武汉","天津","哈尔滨","沈阳",
+      "大连","济南","烟台","威海","洛阳","开封","郑州","太原","呼和浩特","银川","西宁","兰州","乌鲁木齐","喀什","桂林","阳朔","张家界","凤凰古城","婺源",
+      "黄山","九华山","普陀山","武夷山","鼓浪屿","千岛湖","西湖","洱海","滇池","抚仙湖","青海湖","茶卡盐湖","呼伦贝尔","额济纳","稻城亚丁","色达","林芝",
+      "纳木错","珠峰大本营","香港","澳门","台北","高雄","垦丁","花莲","东京","大阪","京都","北海道","首尔","釜山","曼谷","清迈","普吉岛","芭提雅",
+      "新加坡","吉隆坡","巴厘岛","雅加达","河内","岘港","吴哥窟","暹粒","仰光","曼德勒","加德满都","新德里","孟买","斋普尔","巴黎","伦敦","罗马","威尼斯",
+      "佛罗伦萨","巴塞罗那","马德里","柏林","慕尼黑","维也纳","布拉格","阿姆斯特丹","布鲁塞尔","苏黎世","日内瓦","雅典","圣托里尼","伊斯坦布尔","开罗","迪拜",
+      "多哈","纽约","洛杉矶","旧金山","拉斯维加斯","芝加哥","西雅图","迈阿密","夏威夷","温哥华","多伦多","墨西哥城","里约热内卢","布宜诺斯艾利斯","悉尼","墨尔本",
+      "黄金海岸","奥克兰","开普敦","肯尼亚","马尔代夫","塞舌尔","毛里求斯","帕劳","斐济","济州岛","苏梅岛","长滩岛","宿务","薄荷岛","清莱","奈良"
+    ] },
+    { id:"activity", name:"游玩项目", icon:"🎡", answers:[
+      "看电影","密室逃脱","逛博物馆","爬山","海边散步","剧本杀","唱K","桌游","泡温泉","游乐园","骑行","露营","看展","电玩城","保龄球","台球","飞盘","腰旗橄榄球",
+      "滑板","轮滑","攀岩","蹦极","跳伞","潜水","浮潜","冲浪","帆船","皮划艇","划船","钓鱼","射箭","击剑","拳击","瑜伽","普拉提","健身","跑步","快走",
+      "徒步","越野","滑雪","滑冰","雪橇","打雪仗","堆雪人","玩沙","放风筝","野餐","烧烤派对","生日派对","轰趴","酒吧","清吧","音乐节","演唱会","话剧","相声",
+      "脱口秀","魔术表演","马戏团","杂技","逛街","买衣服","逛商场","看书店","咖啡馆发呆","宠物咖啡","猫咖","狗咖","植物园","动物园","海洋馆","水族馆","科技馆",
+      "天文馆","美术馆","图书馆","公园遛弯","广场舞","太极拳","下棋","围棋","象棋","五子棋","扑克","麻将","斗地主","掼蛋","拼图","乐高","手工","DIY","陶艺",
+      "绘画","书法","摄影","拍立得","录像","短跑","篮球","足球","排球","网球","羽毛球","乒乓球","高尔夫","棒球","卡丁车","漂移","越野车","摩托车","自行车",
+      "电动车兜风","摩天轮","过山车","鬼屋","水上乐园","温泉泡汤","桑拿","按摩","足疗","美甲","美发","美容","逛夜市","吃小吃","看烟花","放烟花","看星星","露营看银河",
+      "观鸟","赏花","赏红叶","看枫叶","赏雪","赶海","挖蛤蜊","抓螃蟹","采草莓","摘樱桃","摘葡萄","摘苹果","农家乐","垂钓","划船游湖","坐游轮","坐热气球","直升机观光",
+      "VR体验","电竞","直播","短视频拍摄","写日记","写代码","学外语","读书","听播客","看纪录片"
+    ] },
+    { id:"movie", name:"电影", icon:"🎬", answers:[
+      "肖申克的救赎","阿甘正传","泰坦尼克号","千与千寻","这个杀手不太冷","美丽人生","星际穿越","盗梦空间","楚门的世界","机器人总动员","疯狂动物城","寻梦环游记","飞屋环游记",
+      "冰雪奇缘","狮子王","玩具总动员","海底总动员","超能陆战队","无敌破坏王","怪兽电力公司","功夫熊猫","神偷奶爸","小黄人大眼萌","驯龙高手","疯狂原始人","怪物史瑞克","马达加斯加",
+      "冰河世纪","复仇者联盟","钢铁侠","美国队长","雷神","奇异博士","蜘蛛侠","蝙蝠侠","超人","神奇女侠","正义联盟","海王","银河护卫队","蚁人","黑豹","惊奇队长",
+      "星球大战","黑客帝国","指环王","霍比特人","哈利波特","神奇的动物在哪里","夺宝奇兵","侏罗纪公园","侏罗纪世界","金刚","哥斯拉","异形","终结者","银翼杀手","流浪地球",
+      "流浪地球2","疯狂的石头","让子弹飞","霸王别姬","活着","大话西游","重庆森林","花样年华","无间道","寒战","怒火重案","杀破狼","叶问","一代宗师","卧虎藏龙","英雄",
+      "满城尽带黄金甲","红高粱","阳光灿烂的日子","鬼子来了","甲方乙方","唐人街探案","西虹市首富","羞羞的铁拳","夏洛特烦恼","一出好戏","功夫","少林足球","食神","九品芝麻官","大圣娶亲",
+      "哪吒闹海","姜子牙","白蛇缘起","大圣归来","深海","长安三万里","雄狮少年","你的名字","天气之子","铃芽之旅","秒速五厘米","言叶之庭","命运石之门","攻壳机动队","阿基拉","红辣椒",
+      "大闹天宫","大鱼海棠","罗小黑战记","熊出没","阿凡达","阿凡达水之道","普罗米修斯","异形契约","银翼杀手2049","沙丘","沙丘2","降临","超体","星际迷航","银河护卫队2","死侍",
+      "毒液","侏罗纪世界2","侏罗纪世界3","速度与激情","碟中谍","007","谍影重重","极限特工","敢死队","生化危机","寂静岭","咒怨","午夜凶铃","招魂","逃出绝命镇","寄生虫","老男孩",
+      "杀人回忆","雪国列车","情书","花火","菊次郎的夏天","龙猫","天空之城","风之谷","幽灵公主","哈尔的移动城堡","借东西的小人","起风了"
+    ] },
+    { id:"game", name:"游戏", icon:"🎮", answers:[
+      "王者荣耀","原神","和平精英","蛋仔派对","塞尔达","Steam单机","麻将","斗地主","消消乐","街机","英雄联盟","云顶之弈","金铲铲之战","DOTA2","CSGO","瓦罗兰特","永劫无间","第五人格",
+      "光遇","明日方舟","崩坏星穹铁道","绝区零","鸣潮","幻塔","阴阳师","炉石传说","三国杀","狼人杀","剧本杀","谁是卧底","你画我猜","成语接龙","真心话大冒险","大富翁","飞行棋","跳棋",
+      "国际象棋","军棋","围棋","象棋","五子棋","拼字游戏","数独","华容道","魔方","孔明锁","九连环","俄罗斯方块","贪吃蛇","扫雷","推箱子","我的世界","泰拉瑞亚","饥荒","星露谷物语",
+      "动物森友会","集合啦","喷射战士","马力欧卡丁车","超级马力欧","大金刚","宝可梦","火焰纹章","歧路旅人","最终幻想","勇者斗恶龙","如龙","怪物猎人","艾尔登法环","只狼","黑神话悟空",
+      "巫师3","上古卷轴","辐射","文明","模拟城市","过山车大亨","模拟农场","欧洲卡车","极限竞速","极品飞车","尘埃","F1","火箭联盟","足球经理","NBA2K","FIFA","健身环大冒险","舞力全开",
+      "节奏大师","钢琴块","音游","Cytus","Arcaea","Deemo","贪吃蛇大作战","球球大作战","荒野乱斗","部落冲突","皇室战争","糖果传奇","开心消消乐","宾果消消乐","纪念碑谷","迷你世界","罗布乐思",
+      "红色警戒","星际争霸","魔兽争霸","魔兽世界","暗黑破坏神","流放之路","命运2","APEX英雄","守望先锋","彩虹六号","战地","使命召唤","逃离塔科夫","绝地求生","堡垒之夜","三国志","骑马与砍杀"
+    ] }
+  ];
+
+  var state = {
+    options: load(LS_OPT, []),
+    history: load(LS_HIS, []),
+    presets: load(LS_PRE, []),
+    moduleExtra: load(LS_MODULE_EXTRA, {}),
+    mode: "basic",
+    source: load(LS_SOURCE, "custom"),
+    session: [],
+    listOpen: false,
+    spinning: false,
+    lastResult: null,
+    rounds: []
+  };
+
+  function load(k, def){ try{ var r=localStorage.getItem(k); return r?JSON.parse(r):def; }catch(e){ return def; } }
+  function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  /* ---------- 随机算法（与 App 一致） ---------- */
+  function basicPick(o){ return o[Math.floor(Math.random()*o.length)]; }
+  function weightedPick(o){
+    var total=0,i; for(i=0;i<o.length;i++) total+=Math.max(1,o[i].weight);
+    var r=Math.random()*total;
+    for(i=0;i<o.length;i++){ r-=Math.max(1,o[i].weight); if(r<0) return o[i]; }
+    return o[o.length-1];
+  }
+  function decide(pool, mode){
+    if(pool.length===0) throw new Error("EMPTY");
+    return mode==="weighted"?weightedPick(pool):basicPick(pool);
+  }
+
+  /* ---------- DOM 引用 ---------- */
+  var $ = function(id){ return document.getElementById(id); };
+  var optionsList=$("optionsList"), optCount=$("optCount"), optInput=$("optInput");
+
+  /* ---------- 模块 / 数据源 ---------- */
+  function sourceName(src){
+    if(src==="custom") return "自定义";
+    var m=MODULES.filter(function(x){return x.id===src;})[0];
+    return m?m.name:src;
+  }
+  // 当前数据源：自定义=用户选项；模块=该模块内置答案库
+  function activePool(){
+    if(state.source==="custom") return state.options.map(function(o){ return {id:o.id, label:o.label, weight:o.weight, user:true}; });
+    var m=MODULES.filter(function(x){return x.id===state.source;})[0];
+    if(!m) return [];
+    var builtin = m.answers.map(function(a,i){ return {id:m.id+"_"+i, label:a, weight:1, builtin:true}; });
+    var extra = (state.moduleExtra[m.id]||[]).map(function(a,i){ return {id:m.id+"_x"+i, label:a, weight:1, user:true}; });
+    return builtin.concat(extra);
+  }
+  function renderModules(boxId){
+    var box=$(boxId||"modules"); box.innerHTML="";
+    MODULES.forEach(function(m){
+      var c=document.createElement("div");
+      c.className="chip"+(state.source===m.id?" active":"");
+      c.innerHTML='<span>'+m.icon+'</span><span>'+m.name+'</span>';
+      c.addEventListener("click", function(){ switchSource(m.id); });
+      box.appendChild(c);
+    });
+    var c=document.createElement("div");
+    c.className="chip"+(state.source==="custom"?" active":"");
+    c.innerHTML='<span>✏️</span><span>自定义</span>';
+    c.addEventListener("click", function(){ switchSource("custom"); });
+    box.appendChild(c);
+  }
+  // 切换数据源：同时刷新主页与数据库界面的模块高亮
+  function switchSource(id){
+    selectSource(id);
+    renderModules("dbModules");
+    renderDbList();
+  }
+  function selectSource(src){
+    state.source=src; save(LS_SOURCE, src);
+    state.session=activePool().slice();
+    renderModules();
+    renderOptions();
+    var custom = src==="custom";
+    $("addRow").style.display = custom ? "flex" : "none";
+    $("clearLink").style.opacity = custom ? "1" : "0.4";
+    $("clearLink").style.pointerEvents = custom ? "auto" : "none";
+  }
+
+  /* ---------- 选项列表渲染 ---------- */
+  function renderOptions(){
+    optionsList.innerHTML="";
+    optionsList.style.display = state.listOpen ? "" : "none";
+    $("toggleList").textContent = state.listOpen ? "收起" : "展开";
+    var pool=activePool();
+    var custom = state.source==="custom";
+    $("listHeadTitle").textContent = custom
+      ? ("我的选项（"+pool.length+"）")
+      : (sourceName(state.source)+"（内置答案库 · "+pool.length+"）");
+    if(pool.length===0){
+      var li=document.createElement("li");
+      li.className="empty"; li.textContent= custom ? "还没有选项，先在上面添加一个吧～" : "该模块暂无答案";
+      li.style.background="#fff"; li.style.borderRadius="14px";
+      optionsList.appendChild(li);
+      if(!custom){
+        var note=document.createElement("li"); note.className="note";
+        note.textContent="点上方「📚 数据库」可追加自己想要的答案、并删除自己加的。";
+        optionsList.appendChild(note);
+      }
+      updateModeStatus();
+      return;
+    }
+    // 抽后移除模式：标记已被抽走（不在 session）的项为已排除
+    var alive={};
+    (state.mode==="removeAfter" ? state.session : pool).forEach(function(o){ alive[o.id]=true; });
+    pool.forEach(function(opt, idx){
+      var excluded = state.mode==="removeAfter" && !alive[opt.id];
+      var li=document.createElement("li"); li.className="opt"+(custom?"":" ro")+(excluded?" excluded":"");
+      var badge=document.createElement("div"); badge.className="idx"; badge.textContent=idx+1;
+      li.appendChild(badge);
+      if(custom){
+        var input=document.createElement("input"); input.value=opt.label;
+        input.addEventListener("input", function(){ opt.label=input.value; save(LS_OPT,state.options); });
+        var w=document.createElement("div"); w.className="w";
+        var minus=document.createElement("button"); minus.textContent="−";
+        minus.addEventListener("click", function(){ opt.weight=Math.max(1,opt.weight-1); save(LS_OPT,state.options); renderOptions(); });
+        var wv=document.createElement("span"); wv.textContent=opt.weight;
+        var plus=document.createElement("button"); plus.textContent="＋";
+        plus.addEventListener("click", function(){ opt.weight+=1; save(LS_OPT,state.options); renderOptions(); });
+        w.appendChild(minus); w.appendChild(wv); w.appendChild(plus);
+        var del=document.createElement("button"); del.className="del"; del.textContent="✕";
+        del.addEventListener("click", function(){ state.options=state.options.filter(function(x){return x.id!==opt.id;}); state.session=state.options.slice(); save(LS_OPT,state.options); renderOptions(); });
+        li.appendChild(input); li.appendChild(w); li.appendChild(del);
+      } else {
+        var span=document.createElement("span");
+        span.style.flex="1"; span.style.fontSize="16px"; span.style.padding="4px 0";
+        span.textContent=opt.label;
+        li.appendChild(span);
+      }
+      if(excluded){
+        var tag=document.createElement("span"); tag.className="ex-tag"; tag.textContent="已排除";
+        li.appendChild(tag);
+      }
+      optionsList.appendChild(li);
+    });
+    updateModeStatus();
+  }
+
+  /* 抽后移除状态条 */
+  function updateModeStatus(){
+    var el=$("modeStatus");
+    if(state.mode!=="removeAfter"){ el.style.display="none"; return; }
+    el.style.display="block";
+    var total=activePool().length;
+    var remaining=state.session.length;
+    el.textContent="抽后移除中 · 剩余 "+remaining+" 项，已排除 "+(total-remaining)+" 项";
+  }
+
+  /* 本次抽取结果面板 */
+  function renderRounds(){
+    var box=$("roundsList"); box.innerHTML="";
+    if(state.rounds.length===0){
+      box.innerHTML='<div class="empty">还没有抽取记录，点「开始决策」试试～</div>';
+      return;
+    }
+    state.rounds.forEach(function(r){
+      var li=document.createElement("li"); li.className="opt ro";
+      var badge=document.createElement("div"); badge.className="idx"; badge.textContent="🎯";
+      var span=document.createElement("span");
+      span.style.flex="1"; span.style.fontSize="16px"; span.style.padding="4px 0";
+      span.textContent=r.label;
+      li.appendChild(badge); li.appendChild(span);
+      box.appendChild(li);
+    });
+  }
+
+  /* ---------- 添加 / 清空 ---------- */
+  $("addBtn").addEventListener("click", addOption);
+  optInput.addEventListener("keydown", function(e){ if(e.key==="Enter") addOption(); });
+  function addOption(){
+    var v=optInput.value.trim(); if(!v) return;
+    state.options.push({id:uid(), label:v, weight:1});
+    state.session=state.options.slice();
+    save(LS_OPT,state.options); optInput.value=""; renderOptions();
+  }
+  $("clearLink").addEventListener("click", function(){
+    if(state.source!=="custom") return;
+    if(state.options.length===0) return;
+    if(confirm("确定清空所有选项？")){ state.options=[]; state.session=[]; save(LS_OPT,state.options); renderOptions(); }
+  });
+
+  /* ---------- 模式切换 ---------- */
+  $("modes").addEventListener("click", function(e){
+    var m=e.target.closest(".mode"); if(!m) return;
+    state.mode=m.getAttribute("data-mode");
+    Array.prototype.forEach.call(document.querySelectorAll(".mode"), function(x){ x.classList.remove("active"); });
+    m.classList.add("active");
+    renderOptions();
+  });
+
+  // 重置：把“抽后移除”模式里已被移除的选项全部恢复
+  $("resetBtn").addEventListener("click", function(){
+    state.session = activePool().slice();
+    state.rounds = [];
+    renderRounds();
+    renderOptions();
+    var t=this.querySelector(".t"), old=t.textContent;
+    t.textContent="已重置 ✓";
+    setTimeout(function(){ t.textContent=old; }, 900);
+  });
+
+  /* ---------- 抽取 + 老虎机动画 ---------- */
+  var strip=$("strip"), placeholder=$("placeholder"), decideBtn=$("decideBtn");
+  decideBtn.addEventListener("click", startDecision);
+
+  function startDecision(){
+    if(state.spinning) return;
+    var pool = activePool();
+    if(pool.length<1){ alert(state.source==="custom"?"请先添加至少一个选项":"该模块暂无答案"); return; }
+    var drawPool = state.mode==="removeAfter" ? state.session : pool;
+    if(drawPool.length===0){ drawPool=pool; state.session=pool.slice(); }
+    var res = decide(drawPool, state.mode);
+    if(state.mode==="removeAfter"){ state.session=state.session.filter(function(x){return x.id!==res.id;}); }
+    state.lastResult=res;
+    state.spinning=true; decideBtn.disabled=true; decideBtn.textContent="决策中…";
+    placeholder.style.display="none";
+
+    // 构造滚动序列：前面随机项，最后一项是真实结果
+    var seq=[];
+    var repeats=18+Math.floor(Math.random()*12);
+    for(var i=0;i<repeats;i++){ seq.push(pool[Math.floor(Math.random()*pool.length)].label); }
+    seq.push(res.label);
+
+    strip.innerHTML="";
+    seq.forEach(function(label){
+      var d=document.createElement("div"); d.className="item"; d.textContent=label; strip.appendChild(d);
+    });
+    var target=(seq.length-1)*ITEM_H - CENTER;
+    strip.style.transition="none";
+    strip.style.transform="translateY(0)";
+    // 强制回流后启动减速动画
+    void strip.offsetHeight;
+    strip.style.transition="transform 3s cubic-bezier(.16,1,.3,1)";
+    strip.style.transform="translateY("+(-target)+"px)";
+
+    var done=false;
+    function finish(){
+      if(done) return; done=true;
+      var items=strip.children;
+      if(items.length){ items[items.length-1].classList.add("win"); }
+      state.spinning=false; decideBtn.disabled=false; decideBtn.textContent="开始决策";
+      state.rounds.unshift({label:res.label, time:Date.now()});
+      if(state.rounds.length>30) state.rounds.length=30;
+      showResult(res);
+      pushHistory(res);
+      renderOptions();
+      renderRounds();
+    }
+    strip.addEventListener("transitionend", function(e){ if(e.propertyName==="transform") finish(); });
+    // 兜底（动画事件异常时）
+    setTimeout(finish, 3400);
+  }
+
+  /* ---------- 结果弹窗 + 彩带 ---------- */
+  function showResult(res){
+    $("resultText").textContent=res.label;
+    var box=$("confettiBox"); box.innerHTML="";
+    var emojis=["🎉","✨","🎊","🌟","💫","🍀","🎈"];
+    for(var i=0;i<28;i++){
+      var s=document.createElement("span"); s.className="confetti"; s.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+      s.style.left=(Math.random()*100)+"%";
+      s.style.animationDuration=(1.2+Math.random()*0.8)+"s";
+      s.style.animationDelay=(Math.random()*0.3)+"s";
+      box.appendChild(s);
+    }
+    openModal("resultModal");
+    if(navigator.vibrate){ navigator.vibrate([0,50,30,50]); }
+  }
+  $("againBtn").addEventListener("click", function(){ closeModal("resultModal"); startDecision(); });
+  $("doneBtn").addEventListener("click", function(){ closeModal("resultModal"); });
+
+  /* ---------- 历史 ---------- */
+  function pushHistory(res){
+    state.history.unshift({ id:uid(), time:Date.now(), mode:state.mode, source:state.source, sourceName:sourceName(state.source), label:res.label, count:activePool().length });
+    if(state.history.length>100) state.history=state.history.slice(0,100);
+    save(LS_HIS,state.history);
+  }
+  function renderHistory(){
+    var box=$("historyList"); box.innerHTML="";
+    if(state.history.length===0){ box.innerHTML='<div class="empty">还没有抽取记录</div>'; return; }
+    var modeName={basic:"基础",weighted:"加权",removeAfter:"抽后移除"};
+    state.history.forEach(function(h){
+      var d=document.createElement("div"); d.className="hist-item";
+      var left=document.createElement("div");
+      var t=new Date(h.time);
+      var meta = t.toLocaleString()+' · '+h.sourceName+' · '+modeName[h.mode];
+      left.innerHTML='<div class="name">'+escapeHtml(h.label)+'</div><div class="meta">'+meta+'</div>';
+      var del=document.createElement("button"); del.className="del"; del.textContent="删除";
+      del.addEventListener("click", function(){ state.history=state.history.filter(function(x){return x.id!==h.id;}); save(LS_HIS,state.history); renderHistory(); });
+      d.appendChild(left); d.appendChild(del); box.appendChild(d);
+    });
+  }
+  $("historyLink").addEventListener("click", function(){ renderHistory(); openModal("historyModal"); });
+  $("clearRounds").addEventListener("click", function(){ state.rounds=[]; renderRounds(); });
+
+  /* ---------- 数据库独立界面 ---------- */
+  function renderDbList(){
+    var pool=activePool();
+    var kw=($("dbSearch").value||"").trim().toLowerCase();
+    var list=kw ? pool.filter(function(o){ return o.label.toLowerCase().indexOf(kw)>=0; }) : pool;
+    $("dbCount").textContent = sourceName(state.source)+" · 共 "+pool.length+" 条"+(kw ? ("，匹配 "+list.length+" 条") : "");
+    var box=$("dbList"); box.innerHTML="";
+    if(list.length===0){
+      var d=document.createElement("li"); d.className="empty";
+      d.textContent = kw ? "没有匹配的答案" : "该模块暂无答案";
+      d.style.background="#fff"; d.style.borderRadius="14px";
+      box.appendChild(d); return;
+    }
+    list.forEach(function(opt, idx){
+      var li=document.createElement("li"); li.className="opt"+(opt.user?"":" ro");
+      var badge=document.createElement("div"); badge.className="idx"; badge.textContent=idx+1;
+      var span=document.createElement("span");
+      span.style.flex="1"; span.style.fontSize="16px"; span.style.padding="4px 0";
+      span.textContent=opt.label;
+      li.appendChild(badge); li.appendChild(span);
+      if(opt.user){
+        var del=document.createElement("button"); del.className="del"; del.textContent="✕";
+        del.title="删除我自己加的";
+        del.addEventListener("click", function(){ removeDbItem(opt); });
+        li.appendChild(del);
+      }
+      box.appendChild(li);
+    });
+  }
+  // 删除用户自己追加的答案（数据库自带内容不可删）
+  function removeDbItem(item){
+    if(state.source==="custom"){
+      state.options = state.options.filter(function(o){ return o.id!==item.id; });
+      state.session = state.options.slice();
+      save(LS_OPT, state.options);
+    } else {
+      var arr=(state.moduleExtra[state.source]||[]).slice();
+      var ids=arr.map(function(a,i){ return state.source+"_x"+i; });
+      var idx=ids.indexOf(item.id);
+      if(idx>=0) arr.splice(idx,1);
+      state.moduleExtra[state.source]=arr;
+      save(LS_MODULE_EXTRA, state.moduleExtra);
+    }
+    state.session=activePool().slice();
+    renderDbList(); renderOptions(); renderModules("dbModules");
+  }
+  // 在当前模块/自定义里追加自己的答案
+  function addDbItem(){
+    var v=$("dbAddInput").value.trim(); if(!v) return;
+    if(state.source==="custom"){
+      state.options.push({id:uid(), label:v, weight:1});
+      state.session=state.options.slice();
+      save(LS_OPT, state.options);
+    } else {
+      if(!state.moduleExtra[state.source]) state.moduleExtra[state.source]=[];
+      if(state.moduleExtra[state.source].indexOf(v)>=0){ alert("该答案已存在"); return; }
+      state.moduleExtra[state.source].push(v);
+      save(LS_MODULE_EXTRA, state.moduleExtra);
+    }
+    $("dbAddInput").value="";
+    state.session=activePool().slice();
+    renderDbList(); renderOptions(); renderModules("dbModules");
+  }
+  function openDb(){
+    $("dbSearch").value=""; $("dbAddInput").value="";
+    renderModules("dbModules");
+    renderDbList();
+    $("dbScreen").classList.add("show");
+  }
+  $("dbLink").addEventListener("click", openDb);
+  $("dbBack").addEventListener("click", function(){ $("dbScreen").classList.remove("show"); });
+  $("dbSearch").addEventListener("input", renderDbList);
+  $("dbAddBtn").addEventListener("click", addDbItem);
+  $("dbAddInput").addEventListener("keydown", function(e){ if(e.key==="Enter") addDbItem(); });
+  $("toggleList").addEventListener("click", function(){
+    state.listOpen = !state.listOpen;
+    renderOptions();
+  });
+
+  /* ---------- 预设 ---------- */
+  function renderPresets(){
+    var box=$("presetList"); box.innerHTML="";
+    if(state.presets.length===0){ box.innerHTML='<div class="empty">还没有保存的列表，先保存一个吧～</div>'; return; }
+    state.presets.forEach(function(p){
+      var d=document.createElement("div"); d.className="preset-item";
+      var left=document.createElement("div");
+      left.innerHTML='<div class="name">'+escapeHtml(p.name)+'</div><div class="meta">'+p.options.length+' 项</div>';
+      var right=document.createElement("div"); right.style.display="flex"; right.style.alignItems="center";
+      var load=document.createElement("button"); load.className="del"; load.textContent="加载"; load.style.color="var(--primary)";
+      load.addEventListener("click", function(){ state.options=p.options.map(function(o){return {id:uid(),label:o.label,weight:o.weight};}); state.session=state.options.slice(); save(LS_OPT,state.options); renderOptions(); closeModal("presetModal"); });
+      var del=document.createElement("button"); del.className="del"; del.textContent="删除";
+      del.addEventListener("click", function(){ state.presets=state.presets.filter(function(x){return x.id!==p.id;}); save(LS_PRE,state.presets); renderPresets(); });
+      right.appendChild(load); right.appendChild(del);
+      d.appendChild(left); d.appendChild(right); box.appendChild(d);
+    });
+  }
+  $("presetLink").addEventListener("click", function(){ renderPresets(); openModal("presetModal"); });
+  $("presetSave").addEventListener("click", function(){
+    var n=$("presetName").value.trim();
+    if(!n){ alert("请输入决策列表名称"); return; }
+    if(state.options.length===0){ alert("当前没有选项可保存"); return; }
+    state.presets.push({ id:uid(), name:n, options:state.options.map(function(o){return {id:o.id,label:o.label,weight:o.weight};}) });
+    save(LS_PRE,state.presets); $("presetName").value=""; renderPresets();
+  });
+
+  /* ---------- 弹层工具 ---------- */
+  function openModal(id){ $(id).classList.add("show"); }
+  function closeModal(id){ $(id).classList.remove("show"); }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-close]"), function(b){
+    b.addEventListener("click", function(){ closeModal(b.getAttribute("data-close")); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".modal"), function(m){
+    m.addEventListener("click", function(e){ if(e.target===m) m.classList.remove("show"); });
+  });
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+  /* ---------- 初始化 ---------- */
+  renderModules();
+  selectSource(state.source);
+})();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>
